@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Life-Gravity - 家計簿・資産・恋愛管理アプリ">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Life-Gravity">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0A0A0F">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="manifest" href="manifest.json">
+
+  <title>Life-Gravity</title>
+  <style>
+    body {
+      background-color: #0A0A0F;
+      margin: 0;
+      padding: 0;
+    }
+    #loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #7C3AED;
+      font-family: sans-serif;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading">Life-Gravity を起動中...</div>
+
+  <script>
+    // Service Worker (PWA)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('flutter-first-frame', function () {
+        navigator.serviceWorker.register('flutter_service_worker.js');
+      });
+    }
+  </script>
+  <script src="main.dart.js" type="application/javascript"></script>
+</body>
+</html>
