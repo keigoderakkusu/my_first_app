@@ -1,4 +1,4 @@
-name: bitcoin_tracker
+name: my_first_app
 description: A simple Bitcoin price tracker app - asset management prototype.
 version: 1.0.0+1
 publish_to: 'none'
