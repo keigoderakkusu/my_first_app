@@ -5,7 +5,7 @@
 
 // ===== 設定 =====
 const CONFIG = {
-  GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY',       // ← Gemini APIキーを入れる
+  GEMINI_API_KEY: 'AIzaSyCmEd3SGm3LqrlblJJQX9agDL0pOy9Nq6w',
   NOTIFICATION_EMAIL: 'your@email.com',         // ← 通知先メールアドレス
   SEND_EMAIL: true,                              // false にするとメール通知OFF
   SHEET_NAME: '日報データ',                      // スプレッドシートのシート名
