@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/assets_screen.dart';
 import 'screens/love_screen.dart';
+import 'screens/voice_report_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -44,6 +45,7 @@ class _MainShellState extends State<MainShell> {
     HomeScreen(),
     AssetsScreen(),
     LoveScreen(),
+    VoiceReportScreen(),
   ];
 
   @override
@@ -92,7 +94,13 @@ class _MainShellState extends State<MainShell> {
                 activeIcon: Icon(Icons.favorite),
                 label: '恋愛',
               ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.mic_none_outlined),
+                activeIcon: Icon(Icons.mic),
+                label: '音声日報',
+              ),
             ],
+            type: BottomNavigationBarType.fixed,
           ),
         ),
       ),
