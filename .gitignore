@@ -1,6 +1,10 @@
 # Miscellaneous
 *.class
 *.log
+
+# GAS generated
+gas/.clasp.json
+gas/.gas_env
 *.pyc
 *.swp
 .DS_Store
