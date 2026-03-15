@@ -13,7 +13,7 @@ const CONFIG = {
   GITHUB_CONFIG: {
     OWNER: 'keigoderakkusu',
     REPO: 'my_first_app',
-    TOKEN: PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN') || 'YOUR_GITHUB_TOKEN'
+    TOKEN: PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN') // GASのスクリプトプロパティから取得するように変更
   }
 };
 
@@ -56,6 +56,13 @@ function doGet(e) {
   if (action === 'get_kindle_library') {
     const data = getKindleLibrary();
     return jsonResponse({ success: true, data: data });
+  }
+
+  // 追加: GET リクエストによるスクレイパー起動 (CORS 回避用)
+  if (action === 'trigger_kindle') {
+    const bookUrl = e.parameter.book_url || '';
+    const result = triggerGitHubAction('start-scraper', { book_url: bookUrl });
+    return jsonResponse({ success: true, message: 'スクレイパーを起動しました（GET）', github_response: result });
   }
 
   return jsonResponse({ success: true, message: 'GAS Backend is active' });

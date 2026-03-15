@@ -2,12 +2,15 @@ const { chromium } = require('playwright');
 const { PDFDocument } = require('pdf-lib');
 const fs = require('fs-extra');
 const path = require('path');
+const { google } = require('googleapis');
 
 async function run() {
     const email = process.env.AMAZON_EMAIL;
     const password = process.env.AMAZON_PASSWORD;
     const bookUrl = process.env.KINDLE_BOOK_URL; // Specific book URL support
     const maxPages = parseInt(process.env.MAX_PAGES || '500');
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    const credentialsJson = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
 
     if (!email || !password) {
         console.error('Error: AMAZON_EMAIL and AMAZON_PASSWORD environment variables are required.');
@@ -117,6 +120,10 @@ async function run() {
     fs.writeFileSync(pdfPath, pdfBytes);
     console.log(`Successfully generated PDF: ${pdfPath}`);
 
+    // Upload to Google Drive
+    const fileName = `KindleBook_${new Date().toISOString().split('T')[0]}.pdf`;
+    await uploadToGoogleDrive(pdfPath, fileName, folderId, credentialsJson);
+
     await browser.close();
     await fs.remove(screenshotsDir);
 }
@@ -126,6 +133,44 @@ async function isEndOfBook(page) {
     const markers = ['本を評価', 'Rate this book', '次のおすすめ'];
     const content = await page.content();
     return markers.some(m => content.includes(m));
+}
+
+async function uploadToGoogleDrive(filePath, fileName, folderId, credentialsJson) {
+    if (!credentialsJson || !folderId) {
+        console.log('Skipping Google Drive upload: Credentials or Folder ID not provided.');
+        return;
+    }
+
+    try {
+        console.log('Uploading PDF to Google Drive...');
+        const credentials = JSON.parse(credentialsJson);
+        const auth = new google.auth.GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/drive.file'],
+        });
+
+        const drive = google.drive({ version: 'v3', auth });
+        const fileMetadata = {
+            name: fileName,
+            parents: [folderId],
+        };
+        const media = {
+            mimeType: 'application/pdf',
+            body: fs.createReadStream(filePath),
+        };
+
+        const response = await drive.files.create({
+            resource: fileMetadata,
+            media: media,
+            fields: 'id, webViewLink',
+        });
+
+        console.log('Successfully uploaded to Google Drive:', response.data.id);
+        console.log('View Link:', response.data.webViewLink);
+        return response.data.webViewLink;
+    } catch (error) {
+        console.error('Error uploading to Google Drive:', error);
+    }
 }
 
 run().catch(err => {

@@ -38,6 +38,8 @@ jobs:
         env:
           AMAZON_EMAIL: ${{ secrets.AMAZON_EMAIL }}
           AMAZON_PASSWORD: ${{ secrets.AMAZON_PASSWORD }}
+          GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           KINDLE_BOOK_URL: ${{ github.event.client_payload.book_url || github.event.inputs.book_url }}
         run: |
           cd bitcoin_app/scripts
