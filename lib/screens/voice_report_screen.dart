@@ -43,7 +43,7 @@ class _VoiceReportScreenState extends State<VoiceReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0AA0A0F), // Background color from main.dart
+      backgroundColor: const Color(0xFF0A0A0F), // Background color from main.dart
       appBar: AppBar(
         title: const Text('音声日報 AI要約', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
