@@ -47,14 +47,25 @@ async function run() {
     await page.waitForTimeout(5000);
 
     // If bookUrl is provided, go there. Otherwise, find the first book.
-    if (bookUrl) {
+    if (bookUrl && bookUrl.includes('read.amazon')) {
+        console.log(`Navigating to specific book: ${bookUrl}`);
         await page.goto(bookUrl);
     } else {
-        // Logic to click the first book in the library
-        console.log('Finding the first book in the library...');
-        // This selector might change, need to be robust
-        const firstBook = await page.waitForSelector('.library-item', { timeout: 30000 });
-        await firstBook.click();
+        console.log('No URL provided or invalid URL. Scanning library for the most recent book...');
+        // The library page might take time to render items
+        await page.waitForSelector('.library-item, #library-container', { timeout: 30000 });
+
+        // Attempt to find the first book cover/link
+        // Kindle Cloud Reader structure often uses data-asin or specific ARIA labels
+        const books = await page.$$('.library-item');
+        if (books.length > 0) {
+            console.log(`Found ${books.length} books. Opening the first one...`);
+            await books[0].click();
+        } else {
+            console.error('Library Error: No books found in the library. Please make sure you have books in your Kindle account.');
+            await page.screenshot({ path: 'library_empty.png' });
+            process.exit(1);
+        }
     }
 
     console.log('Book opened. Starting screenshot loop...');
