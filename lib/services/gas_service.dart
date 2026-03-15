@@ -39,6 +39,78 @@ class GasService {
       return GasResult.failure('通信エラー: $e');
     }
   }
+
+  /// Kindle ライブラリ情報を取得する
+  static Future<List<KindleBook>> getKindleLibrary() async {
+    try {
+      final response = await http
+          .get(Uri.parse('$_gasUrl?action=get_kindle_library'))
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return (data['data'] as List)
+              .map((b) => KindleBook.fromJson(b))
+              .toList();
+        }
+      }
+      return [];
+    } catch (e) {
+      print('getKindleLibrary error: $e');
+      return [];
+    }
+  }
+
+  /// スクレイパーを起動する
+  static Future<bool> triggerKindleScan({String? bookUrl}) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse(_gasUrl),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'action': 'trigger_kindle',
+              'book_url': bookUrl ?? '',
+            }),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] == true;
+      }
+      return false;
+    } catch (e) {
+      print('triggerKindleScan error: $e');
+      return false;
+    }
+  }
+}
+
+// ===== Kindle データモデル =====
+class KindleBook {
+  final String title;
+  final String url;
+  final String status;
+  final String lastUpdated;
+  final String driveUrl;
+
+  KindleBook({
+    required this.title,
+    required this.url,
+    required this.status,
+    required this.lastUpdated,
+    required this.driveUrl,
+  });
+
+  factory KindleBook.fromJson(Map<String, dynamic> json) => KindleBook(
+        title: json['タイトル'] ?? '',
+        url: json['URL'] ?? '',
+        status: json['ステータス'] ?? '',
+        lastUpdated: json['最終更新'].toString(),
+        driveUrl: json['保存先URL'] ?? '',
+      );
 }
 
 // ===== 結果モデル =====

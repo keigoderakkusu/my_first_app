@@ -6,39 +6,106 @@
 // ===== 設定 =====
 const CONFIG = {
   GEMINI_API_KEY: 'AIzaSyCmEd3SGm3LqrlblJJQX9agDL0pOy9Nq6w',
-  NOTIFICATION_EMAIL: 'your@email.com',         // ← 通知先メールアドレス
-  SEND_EMAIL: true,                              // false にするとメール通知OFF
+  NOTIFICATION_EMAIL: 'keigo828n@gmail.com',         // ← 通知先メールアドレス
+  SEND_EMAIL: false,                              // false にするとメール通知OFF
   SHEET_NAME: '日報データ',                      // スプレッドシートのシート名
+  KINDLE_SHEET_NAME: 'Kindleデータ',            // Kindle用シート名
+  GITHUB_CONFIG: {
+    OWNER: 'keigoderakkusu',
+    REPO: 'my_first_app',
+    TOKEN: PropertiesService.getScriptProperties().getProperty('GITHUB_TOKEN') || 'YOUR_GITHUB_TOKEN'
+  }
 };
 
-// ===== Webhook受信エントリーポイント =====
+// ===== Webhook受信エントリーポイント (POST) =====
 function doPost(e) {
   try {
     const raw = JSON.parse(e.postData.contents);
-    const voiceText = raw.text;
-    const timestamp  = raw.timestamp || new Date().toISOString();
+    const action = raw.action || 'report'; // デフォルトは日報
 
-    if (!voiceText) {
-      return jsonResponse({ success: false, error: 'テキストが空です' }, 400);
+    // 1. 日報処理
+    if (action === 'report') {
+      const voiceText = raw.text;
+      const timestamp  = raw.timestamp || new Date().toISOString();
+      if (!voiceText) return jsonResponse({ success: false, error: 'テキストが空です' }, 400);
+      const structured = structureWithGemini(voiceText);
+      saveToSheet(structured, voiceText, timestamp);
+      if (CONFIG.SEND_EMAIL) sendNotification(structured, timestamp);
+      return jsonResponse({ success: true, data: structured });
     }
 
-    // 1. Gemini で構造化
-    const structured = structureWithGemini(voiceText);
-
-    // 2. スプレッドシートに記録
-    saveToSheet(structured, voiceText, timestamp);
-
-    // 3. メール通知（任意）
-    if (CONFIG.SEND_EMAIL) {
-      sendNotification(structured, timestamp);
+    // 2. Kindle スクレイパー開始
+    if (action === 'trigger_kindle') {
+      const bookUrl = raw.book_url || '';
+      const result = triggerGitHubAction('start-scraper', { book_url: bookUrl });
+      return jsonResponse({ success: true, message: 'スクレイパーを起動しました', github_response: result });
     }
 
-    return jsonResponse({ success: true, data: structured });
+    return jsonResponse({ success: false, error: '不明なアクションです' }, 400);
 
   } catch (err) {
     console.error('doPost error:', err);
     return jsonResponse({ success: false, error: err.message }, 500);
   }
+}
+
+// ===== Webhook受信エントリーポイント (GET) =====
+function doGet(e) {
+  const action = e.parameter.action;
+
+  if (action === 'get_kindle_library') {
+    const data = getKindleLibrary();
+    return jsonResponse({ success: true, data: data });
+  }
+
+  return jsonResponse({ success: true, message: 'GAS Backend is active' });
+}
+
+// ===== GitHub Actions をトリガーする =====
+function triggerGitHubAction(eventType, clientPayload) {
+  const url = `https://api.github.com/repos/${CONFIG.GITHUB_CONFIG.OWNER}/${CONFIG.GITHUB_CONFIG.REPO}/dispatches`;
+  
+  const payload = {
+    event_type: eventType,
+    client_payload: clientPayload
+  };
+
+  const options = {
+    method: 'POST',
+    contentType: 'application/json',
+    headers: {
+      'Authorization': `token ${CONFIG.GITHUB_CONFIG.TOKEN}`,
+      'Accept': 'application/vnd.github.v3+json'
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  return response.getContentText();
+}
+
+// ===== Kindle ライブラリ情報の取得 =====
+function getKindleLibrary() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.KINDLE_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.KINDLE_SHEET_NAME);
+    sheet.appendRow(['タイトル', 'URL', 'ステータス', '最終更新', '保存先URL']);
+    return [];
+  }
+
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return [];
+
+  const headers = values[0];
+  const rows = values.slice(1);
+
+  return rows.map(row => {
+    let obj = {};
+    headers.forEach((h, i) => obj[h] = row[i]);
+    return obj;
+  });
 }
 
 // ===== Gemini API で構造化 =====

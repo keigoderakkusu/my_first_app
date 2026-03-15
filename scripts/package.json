@@ -1,0 +1,11 @@
+{
+    "name": "kindle-scraper",
+    "version": "1.0.0",
+    "description": "Automated Kindle Scraper for Life-Gravity",
+    "main": "kindle_scraper.js",
+    "dependencies": {
+        "playwright": "^1.42.1",
+        "pdf-lib": "^1.17.1",
+        "fs-extra": "^11.2.0"
+    }
+}

@@ -1,0 +1,61 @@
+name: Kindle Scraper (Screenshot to PDF)
+
+on:
+  repository_dispatch:
+    types: [start-scraper]
+  workflow_dispatch:
+    inputs:
+      book_url:
+        description: 'Target Kindle Book URL (optional)'
+        required: false
+        default: ''
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: bitcoin_app/scripts/package.json
+
+      - name: 📦 Install dependencies
+        run: |
+          cd bitcoin_app/scripts
+          npm install
+
+      - name: 🎭 Install Playwright Browsers
+        run: |
+          cd bitcoin_app/scripts
+          npx playwright install chromium --with-deps
+
+      - name: 📖 Run Scraper
+        env:
+          AMAZON_EMAIL: ${{ secrets.AMAZON_EMAIL }}
+          AMAZON_PASSWORD: ${{ secrets.AMAZON_PASSWORD }}
+          KINDLE_BOOK_URL: ${{ github.event.client_payload.book_url || github.event.inputs.book_url }}
+        run: |
+          cd bitcoin_app/scripts
+          node kindle_scraper.js
+
+      - name: 📤 Upload PDF Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kindle-pdf
+          path: bitcoin_app/scripts/output_book.pdf
+
+      - name: ☁️ Upload to Google Drive
+        # This step requires GOOGLE_DRIVE_REFRESH_TOKEN, GOOGLE_DRIVE_CLIENT_ID, GOOGLE_DRIVE_CLIENT_SECRET
+        # We will inform the user to set these up in GitHub Secrets.
+        if: success()
+        uses: adityak74/google-drive-upload-git-action@main
+        with:
+          credentials: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          filename: bitcoin_app/scripts/output_book.pdf
+          folderId: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+          overwrite: "false"

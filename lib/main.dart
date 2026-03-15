@@ -3,6 +3,7 @@ import 'screens/home_screen.dart';
 import 'screens/assets_screen.dart';
 import 'screens/love_screen.dart';
 import 'screens/voice_report_screen.dart';
+import 'screens/kindle_scraper_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -46,6 +47,7 @@ class _MainShellState extends State<MainShell> {
     AssetsScreen(),
     LoveScreen(),
     VoiceReportScreen(),
+    KindleScraperScreen(),
   ];
 
   @override
@@ -98,6 +100,11 @@ class _MainShellState extends State<MainShell> {
                 icon: Icon(Icons.mic_none_outlined),
                 activeIcon: Icon(Icons.mic),
                 label: '音声日報',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.menu_book_outlined),
+                activeIcon: Icon(Icons.menu_book),
+                label: 'Kindle',
               ),
             ],
             type: BottomNavigationBarType.fixed,
