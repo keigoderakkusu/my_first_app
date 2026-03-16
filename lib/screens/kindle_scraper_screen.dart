@@ -50,7 +50,7 @@ class _KindleScraperScreenState extends State<KindleScraperScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
       appBar: AppBar(
-        title: const Text('Kindle Scraper', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Kindle Scraper', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
@@ -99,13 +99,13 @@ class _KindleScraperScreenState extends State<KindleScraperScreen> {
         children: [
           const Icon(Icons.auto_awesome, color: Colors.blueAccent, size: 40),
           const SizedBox(height: 12),
-          const Text(
+          Text(
             '自動スクショ & PDF化',
             style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Kindleライブラリから未処理の本を自動検知してPDF化します。\nURLの入力がない場合はライブラリの先頭から開始します空間。',
+          Text(
+            'Kindleライブラリから未処理の本を自動検知してPDF化します。\nURLの入力がない場合はライブラリの先頭から開始します。',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
