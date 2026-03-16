@@ -104,7 +104,8 @@ class _KindleScraperScreenState extends State<KindleScraperScreen> {
             style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-            'Kindleライブラリから未処理の本を自動検知してPDF化します。\nURLの入力がない場合はライブラリの先頭から開始します。',
+          const Text(
+            'Kindleライブラリから未処理の本を自動検知してPDF化します。\nURLの入力がない場合はライブラリの先頭から開始します空間。',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
