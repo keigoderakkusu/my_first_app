@@ -20,12 +20,7 @@ const CONFIG = {
 // ===== CORS プレフライトリクエスト対策 (OPTIONS) =====
 function doOptions(e) {
   return ContentService.createTextOutput("")
-    .setMimeType(ContentService.MimeType.TEXT)
-    .headers({
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
-    });
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 // ===== Webhook受信エントリーポイント (POST) =====
@@ -318,8 +313,7 @@ Life-Gravity 日報システム から自動送信
 function jsonResponse(obj, statusCode = 200) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON)
-    .headers({ "Access-Control-Allow-Origin": "*" });
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 // ===== (GASエディタから手動テスト用) =====
