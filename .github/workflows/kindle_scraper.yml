@@ -40,6 +40,7 @@ jobs:
           AMAZON_PASSWORD: ${{ secrets.AMAZON_PASSWORD }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
+          GAS_WEB_APP_URL: ${{ secrets.GAS_WEB_APP_URL }}
           KINDLE_BOOK_URL: ${{ github.event.client_payload.book_url || github.event.inputs.book_url }}
         run: |
           cd scripts

@@ -104,10 +104,9 @@ class _KindleScraperScreenState extends State<KindleScraperScreen> {
             style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Kindleライブラリから未読本を自動でPDFに変換します。',
+            'Kindleライブラリから未処理の本を自動検知してPDF化します。\nURLの入力がない場合はライブラリの先頭から開始します。',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 20),
           TextField(

@@ -41,6 +41,11 @@ function doPost(e) {
       return jsonResponse({ success: true, message: 'スクレイパーを起動しました', github_response: result });
     }
 
+    // 3. Kindle ステータス更新 (スクレイパーからの通知)
+    if (action === 'update_kindle_status') {
+      return updateKindleStatus(raw.title, raw.status, raw.timestamp);
+    }
+
     return jsonResponse({ success: false, error: '不明なアクションです' }, 400);
 
   } catch (err) {
@@ -113,6 +118,41 @@ function getKindleLibrary() {
     headers.forEach((h, i) => obj[h] = row[i]);
     return obj;
   });
+}
+
+/**
+ * スクレイパーからの完了通知を受け取り、ステータスを更新する
+ */
+function updateKindleStatus(title, status, timestamp) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(CONFIG.KINDLE_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG.KINDLE_SHEET_NAME);
+    sheet.appendRow(['タイトル', 'URL', 'ステータス', '最終更新', '保存先URL']);
+  }
+  
+  const values = sheet.getDataRange().getValues();
+  let foundRow = -1;
+  
+  for (let i = 1; i < values.length; i++) {
+    if (values[i][0] === title) {
+      foundRow = i + 1;
+      break;
+    }
+  }
+  
+  const now = timestamp || new Date().toISOString();
+  
+  if (foundRow > 0) {
+    // 既存の行を更新 (ステータス=3列目, 最終更新=4列目)
+    sheet.getRange(foundRow, 3).setValue(status);
+    sheet.getRange(foundRow, 4).setValue(now);
+  } else {
+    // 新規追加: タイトル, URL(空), ステータス, 最終更新, 保存先URL(空)
+    sheet.appendRow([title, '', status, now, '']);
+  }
+  
+  return jsonResponse({ success: true });
 }
 
 // ===== Gemini API で構造化 =====

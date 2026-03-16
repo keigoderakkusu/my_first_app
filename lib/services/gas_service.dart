@@ -16,7 +16,7 @@ class GasService {
       final response = await http
           .post(
             Uri.parse(_gasUrl),
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'text/plain'},
             body: jsonEncode({
               'text': voiceText,
               'timestamp': DateTime.now().toIso8601String(),
@@ -64,15 +64,9 @@ class GasService {
   /// スクレイパーを起動する
   static Future<bool> triggerKindleScan({String? bookUrl}) async {
     try {
+      final url = '$_gasUrl?action=trigger_kindle&book_url=${Uri.encodeComponent(bookUrl ?? '')}';
       final response = await http
-          .post(
-            Uri.parse(_gasUrl),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'action': 'trigger_kindle',
-              'book_url': bookUrl ?? '',
-            }),
-          )
+          .get(Uri.parse(url))
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
