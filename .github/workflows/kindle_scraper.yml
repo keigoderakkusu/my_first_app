@@ -47,6 +47,15 @@ jobs:
           cd scripts
           node kindle_scraper.js
 
+      - name: 📤 Upload Error Evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-evidence
+          path: |
+            scripts/error_screenshot.png
+            scripts/error_page.html
+
       - name: 📤 Upload PDF Artifact
         uses: actions/upload-artifact@v4
         with:

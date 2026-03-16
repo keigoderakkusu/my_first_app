@@ -56,11 +56,22 @@ async function run() {
         await page.goto('https://read.amazon.co.jp/kindle-library');
         await page.waitForTimeout(5000);
 
-        // Find visible book items
+        // Find visible book items with timeout handling
+        try {
+            console.log('Waiting for library items to appear...');
+            await page.waitForSelector('.library-item, #library-container', { timeout: 30000 });
+        } catch (e) {
+            console.error('Timeout waiting for library items. Capturing debug evidence...');
+            await page.screenshot({ path: 'error_screenshot.png', fullPage: true });
+            const html = await page.content();
+            fs.writeFileSync('error_page.html', html);
+            console.error('Fatal Error: page.waitForSelector: Timeout 30000ms exceeded.');
+            process.exit(1);
+        }
+
         const bookItems = await page.$$('.library-item');
         if (bookItems.length === 0) {
-            console.error('No books found in library.');
-            await page.screenshot({ path: 'library_empty.png' });
+            console.error('No books found in library even after wait.');
             process.exit(1);
         }
 
