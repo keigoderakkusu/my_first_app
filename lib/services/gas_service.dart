@@ -48,7 +48,7 @@ class GasService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        if (data['success'] == true) {
+        if (data['success'] == true && data['data'] != null) {
           return (data['data'] as List)
               .map((b) => KindleBook.fromJson(b))
               .toList();
@@ -61,12 +61,18 @@ class GasService {
     }
   }
 
-  /// スクレイパーを起動する
+  /// スクレイパーを起動する (POST方式に統合してCORS回避)
   static Future<bool> triggerKindleScan({String? bookUrl}) async {
     try {
-      final url = '$_gasUrl?action=trigger_kindle&book_url=${Uri.encodeComponent(bookUrl ?? '')}';
       final response = await http
-          .get(Uri.parse(url))
+          .post(
+            Uri.parse(_gasUrl),
+            headers: {'Content-Type': 'text/plain'},
+            body: jsonEncode({
+              'action': 'trigger_kindle',
+              'book_url': bookUrl ?? '',
+            }),
+          )
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {

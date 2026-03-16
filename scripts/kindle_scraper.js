@@ -1,8 +1,12 @@
-const { chromium } = require('playwright');
+const { chromium } = require('playwright-extra');
+const stealth = require('puppeteer-extra-plugin-stealth')();
 const { PDFDocument } = require('pdf-lib');
 const fs = require('fs-extra');
 const path = require('path');
-const axios = require('axios'); // For GAS communication
+const axios = require('axios');
+
+// Enable stealth
+chromium.use(stealth);
 
 // GAS Endpoint (from environment)
 const GAS_URL = process.env.GAS_WEB_APP_URL;
@@ -18,10 +22,13 @@ async function run() {
         process.exit(1);
     }
 
+    console.log('Starting stealth browser...');
     const browser = await chromium.launch({ headless: true });
     const context = await browser.newContext({
         viewport: { width: 1200, height: 1600 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        locale: 'ja-JP',
+        timezoneId: 'Asia/Tokyo',
     });
     const page = await context.newPage();
 
