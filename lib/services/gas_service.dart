@@ -43,7 +43,11 @@ class GasService {
   static Future<List<KindleBook>> getKindleLibrary() async {
     try {
       final response = await http
-          .get(Uri.parse('$_gasUrl?action=get_kindle_library'))
+          .post(
+            Uri.parse(_gasUrl),
+            headers: {'Content-Type': 'text/plain'},
+            body: jsonEncode({'action': 'get_kindle_library'}),
+          )
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
