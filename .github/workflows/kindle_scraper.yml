@@ -28,7 +28,6 @@ jobs:
         run: |
           cd scripts
           npm install
-          npm install playwright-extra puppeteer-extra-plugin-stealth
 
       - name: 🎭 Install Playwright Browsers
         run: |
