@@ -18,6 +18,7 @@ class GasService {
             Uri.parse(_gasUrl),
             headers: {'Content-Type': 'text/plain'},
             body: jsonEncode({
+              'action': 'report',
               'text': voiceText,
               'timestamp': DateTime.now().toIso8601String(),
             }),

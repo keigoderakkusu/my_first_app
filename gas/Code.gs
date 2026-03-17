@@ -17,7 +17,6 @@ const CONFIG = {
   }
 };
 
-// ===== CORS プレフライトリクエスト対策 (OPTIONS) =====
 function doOptions(e) {
   return ContentService.createTextOutput("")
     .setMimeType(ContentService.MimeType.TEXT);
@@ -311,9 +310,10 @@ Life-Gravity 日報システム から自動送信
 
 // ===== ユーティリティ: JSONレスポンス =====
 function jsonResponse(obj, statusCode = 200) {
+  // text/plain にすることで、ブラウザが CORS プリフライト（OPTIONS）を要求しにくくなる
   return ContentService
     .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
+    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 // ===== (GASエディタから手動テスト用) =====
