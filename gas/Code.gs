@@ -40,10 +40,16 @@ function doPost(e) {
     }
 
     // 2. Kindle スクレイパー開始
-    if (action === 'trigger_kindle') {
+    if (action === 'trigger_kindle' || action === 'trigger_kindle_scraper') {
       const bookUrl = raw.book_url || '';
-      const result = triggerGitHubAction('start-scraper', { book_url: bookUrl });
-      return jsonResponse({ success: true, message: 'スクレイパーを起動しました', github_response: result });
+      const githubRes = triggerGitHubAction('start-scraper', { book_url: bookUrl });
+      
+      if (githubRes.success) {
+        return jsonResponse({ success: true, message: 'スクレイパーを起動しました' });
+      } else {
+        console.error("🚨GitHub連携エラー🚨: " + githubRes.error);
+        return jsonResponse({ success: false, error: githubRes.error }, 500);
+      }
     }
 
     // 3. Kindle ステータス更新 (スクレイパーからの通知)
@@ -91,15 +97,26 @@ function triggerGitHubAction(eventType, clientPayload) {
     method: 'POST',
     contentType: 'application/json',
     headers: {
-      'Authorization': `token ${CONFIG.GITHUB_CONFIG.TOKEN}`,
+      'Authorization': `Bearer ${CONFIG.GITHUB_CONFIG.TOKEN}`, // 'token' から 'Bearer' に変更
       'Accept': 'application/vnd.github.v3+json'
     },
     payload: JSON.stringify(payload),
     muteHttpExceptions: true
   };
 
-  const response = UrlFetchApp.fetch(url, options);
-  return response.getContentText();
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const code = response.getResponseCode();
+    
+    if (code === 204) {
+      return { success: true };
+    } else {
+      const errorMsg = `HTTP ${code} - ${response.getContentText()}`;
+      return { success: false, error: errorMsg };
+    }
+  } catch (err) {
+    return { success: false, error: err.toString() };
+  }
 }
 
 // ===== Kindle ライブラリ情報の取得 =====
