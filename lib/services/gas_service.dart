@@ -67,7 +67,7 @@ class GasService {
   }
 
   /// スクレイパーを起動する (POST方式に統合してCORS回避)
-  static Future<bool> triggerKindleScan({String? bookUrl}) async {
+  static Future<GasResult> triggerKindleScan({String? bookUrl}) async {
     try {
       final response = await http
           .post(
@@ -80,14 +80,14 @@ class GasService {
           )
           .timeout(const Duration(seconds: 15));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['success'] == true;
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        return GasResult.success(ReportData(title: 'Trigger', meetingPartner: '', date: '', location: '', summary: '', decisions: [], concerns: [], nextActions: [], memo: ''));
+      } else {
+        return GasResult.failure(data['error'] ?? '不明なエラー（${response.statusCode}）');
       }
-      return false;
     } catch (e) {
-      print('triggerKindleScan error: $e');
-      return false;
+      return GasResult.failure('通信エラー: $e');
     }
   }
 }

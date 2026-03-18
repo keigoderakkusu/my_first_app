@@ -33,13 +33,13 @@ class _KindleScraperScreenState extends State<KindleScraperScreen> {
 
   Future<void> _startScraper({String? url}) async {
     setState(() => _isTriggering = true);
-    final success = await GasService.triggerKindleScan(bookUrl: url);
+    final result = await GasService.triggerKindleScan(bookUrl: url);
     if (mounted) {
       setState(() => _isTriggering = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(success ? '🚀 スクレイパーを起動しました（GitHub Actions）' : '❌ 起動に失敗しました'),
-          backgroundColor: success ? Colors.green : Colors.red,
+          content: Text(result.success ? '🚀 スクレイパーを起動しました' : '❌ 起動に失敗しました: ${result.error}'),
+          backgroundColor: result.success ? Colors.green : Colors.red,
         ),
       );
     }
