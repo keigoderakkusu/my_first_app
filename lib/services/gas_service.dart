@@ -8,7 +8,8 @@ import 'package:http/http.dart' as http;
 
 class GasService {
   // ← デプロイ後のWebアプリURLに差し替える
-  static const String _gasUrl = 'https://script.google.com/macros/s/AKfycbz5gDoRuHFZTKEx2_a5vodoPjKcMFSxSXINfSqt-gGwrcvavDhbS6UsZpsuM-kbKx5y/exec';
+  static const String _gasUrl =
+      'https://script.google.com/macros/s/AKfycbz5gDoRuHFZTKEx2_a5vodoPjKcMFSxSXINfSqt-gGwrcvavDhbS6UsZpsuM-kbKx5y/exec';
 
   /// 音声テキストをGASに送信して日報を生成・保存する
   static Future<GasResult> sendVoiceReport(String voiceText) async {
@@ -16,7 +17,7 @@ class GasService {
       final response = await http
           .post(
             Uri.parse(_gasUrl),
-            headers: {'Content-Type': 'text/plain'},
+            headers: {'Content-Type': 'text/plain'}, // CORS回避のため text/plain
             body: jsonEncode({
               'action': 'report',
               'text': voiceText,
@@ -43,12 +44,10 @@ class GasService {
   /// Kindle ライブラリ情報を取得する
   static Future<List<KindleBook>> getKindleLibrary() async {
     try {
+      // NOTE: GAS requires GET or simple POST to avoid CORS preflight.
+      // We'll use GET here for fetching data.
       final response = await http
-          .post(
-            Uri.parse(_gasUrl),
-            headers: {'Content-Type': 'text/plain'},
-            body: jsonEncode({'action': 'get_kindle_library'}),
-          )
+          .get(Uri.parse('$_gasUrl?action=get_kindle_library'))
           .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
@@ -72,7 +71,7 @@ class GasService {
       final response = await http
           .post(
             Uri.parse(_gasUrl),
-            headers: {'Content-Type': 'text/plain'},
+            headers: {'Content-Type': 'text/plain'}, // CORS回避のため text/plain
             body: jsonEncode({
               'action': 'trigger_kindle',
               'book_url': bookUrl ?? '',
@@ -80,11 +79,15 @@ class GasService {
           )
           .timeout(const Duration(seconds: 15));
 
-      final data = jsonDecode(response.body);
-      if (response.statusCode == 200 && data['success'] == true) {
-        return GasResult.success(ReportData(title: 'Trigger', meetingPartner: '', date: '', location: '', summary: '', decisions: [], concerns: [], nextActions: [], memo: ''));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          return GasResult.success(ReportData(title: 'Trigger', meetingPartner: '', date: '', location: '', summary: '', decisions: [], concerns: [], nextActions: [], memo: ''));
+        } else {
+          return GasResult.failure(data['error'] ?? 'エラー: ${response.statusCode}');
+        }
       } else {
-        return GasResult.failure(data['error'] ?? '不明なエラー（${response.statusCode}）');
+        return GasResult.failure('HTTPエラー: ${response.statusCode}');
       }
     } catch (e) {
       return GasResult.failure('通信エラー: $e');
@@ -185,27 +188,3 @@ class NextAction {
         deadline: json['deadline'] ?? '',
       );
 }
-
-// ============================================================
-// 使用例 (Flutter Widget内からの呼び出し方)
-// ============================================================
-// 
-// ```dart
-// void _submitReport() async {
-//   setState(() => _isSending = true);
-//
-//   final result = await GasService.sendVoiceReport(_recognizedText);
-//
-//   if (result.success) {
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       SnackBar(content: Text('日報を送信しました: ${result.data!.title}')),
-//     );
-//   } else {
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       SnackBar(content: Text('エラー: ${result.error}')),
-//     );
-//   }
-//
-//   setState(() => _isSending = false);
-// }
-// ```
