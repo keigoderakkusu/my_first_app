@@ -91,6 +91,12 @@ function doPost(e) {
 // ===== Webhook受信エントリーポイント (GET) =====
 function doGet(e) {
   const action = e.parameter.action;
+  const setup  = e.parameter.setup;
+
+  if (setup === '1') {
+    setupProperties();
+    return jsonResponse({ success: true, message: 'Properties have been set.' });
+  }
 
   if (action === 'get_kindle_library') {
     return jsonResponse({ success: true, data: getKindleLibrary() });
@@ -341,4 +347,13 @@ function testDoPost() {
   };
   const result = doPost(mockE);
   console.log(result.getContent());
+}
+function setupProperties() {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperties({
+    'GEMINI_API_KEY': 'YOUR_GEMINI_API_KEY_HERE',
+    'GITHUB_TOKEN':   'YOUR_GITHUB_TOKEN_HERE',
+    'SPREADSHEET_ID': 'YOUR_SPREADSHEET_ID_HERE'
+  });
+  console.log('Script properties placeholders have been set. Please update them with real values in the GAS editor.');
 }
