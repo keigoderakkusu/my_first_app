@@ -33,14 +33,36 @@ async function run() {
     const page = await context.newPage();
 
     console.log('Logging in to Amazon Kindle Cloud Reader...');
-    await page.goto('https://read.amazon.co.jp/');
 
+    // Attempt to load cookies if provided
+    const amazonCookies = process.env.AMAZON_COOKIES;
+    if (amazonCookies) {
+        try {
+            const cookies = JSON.parse(amazonCookies);
+            await context.addCookies(cookies);
+            console.log('Loaded cookies from AMAZON_COOKIES secret.');
+        } catch (e) {
+            console.error('Failed to parse AMAZON_COOKIES JSON:', e.message);
+        }
+    }
+
+    await page.goto('https://read.amazon.co.jp/');
+    await page.waitForTimeout(3000);
+
+    // If the login form is still present, cookies didn't work or weren't provided.
     if (await page.$('#ap_email')) {
+        console.log('Cookies invalid or missing. Attempting email/password login...');
+        if (!email || !password) {
+            console.error('Error: AMAZON_EMAIL and AMAZON_PASSWORD are required if cookies are not used.');
+            process.exit(1);
+        }
         await page.fill('#ap_email', email);
         await page.click('#continue');
         await page.waitForTimeout(1000);
         await page.fill('#ap_password', password);
         await page.click('#signInSubmit');
+    } else {
+        console.log('Successfully bypassed login form (likely using cookies)!');
     }
 
     await page.waitForTimeout(5000);

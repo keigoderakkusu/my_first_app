@@ -39,6 +39,7 @@ jobs:
         env:
           AMAZON_EMAIL: ${{ secrets.AMAZON_EMAIL }}
           AMAZON_PASSWORD: ${{ secrets.AMAZON_PASSWORD }}
+          AMAZON_COOKIES: ${{ secrets.AMAZON_COOKIES }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           GOOGLE_DRIVE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_DRIVE_CREDENTIALS_JSON }}
           GAS_WEB_APP_URL: ${{ secrets.GAS_WEB_APP_URL }}
