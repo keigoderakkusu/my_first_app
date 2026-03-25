@@ -81,7 +81,7 @@ async function run() {
         // Find visible book items with timeout handling
         try {
             console.log('Waiting for library items to appear...');
-            await page.waitForSelector('.library-item, #itemViewResponse', { timeout: 30000 });
+            await page.waitForSelector('.library-item, #itemViewResponse', { state: 'attached', timeout: 30000 });
         } catch (e) {
             console.error('Timeout waiting for library items. Capturing debug evidence...');
             await page.screenshot({ path: 'error_screenshot.png', fullPage: true });
