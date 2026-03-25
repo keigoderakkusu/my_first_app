@@ -136,6 +136,12 @@ async function run() {
 
     let pageCount = 0;
     const pdfDoc = await PDFDocument.create();
+    
+    let previousImgBytes = null;
+    let stuckCount = 0;
+    let forwardKey = 'ArrowLeft'; // Defaults to Japanese format (Left turn)
+    const possibleKeys = ['ArrowLeft', 'ArrowRight', 'Space', 'PageDown'];
+    let keyIndex = 0;
 
     // Capture Loop
     while (pageCount < maxPages) {
@@ -143,19 +149,41 @@ async function run() {
         const screenshotPath = path.join(screenshotsDir, `p${pageCount}.png`);
 
         await page.screenshot({ path: screenshotPath });
-        console.log(`Captured page ${pageCount}`);
-
         const imgBytes = fs.readFileSync(screenshotPath);
-        const img = await pdfDoc.embedPng(imgBytes);
-        const pdfPage = pdfDoc.addPage([img.width, img.height]);
-        pdfPage.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+
+        // Check if page actually turned (stuck detection)
+        if (previousImgBytes && Buffer.compare(previousImgBytes, imgBytes) === 0) {
+            stuckCount++;
+            console.log(`Page unchanged. Stuck count: ${stuckCount}`);
+            if (stuckCount >= 2) {
+                keyIndex++;
+                if (keyIndex >= possibleKeys.length) {
+                    console.log('Tried all keys, page still won\'t turn. Reached end of book.');
+                    break;
+                }
+                forwardKey = possibleKeys[keyIndex];
+                console.log(`Switching page turn key to: ${forwardKey}`);
+                stuckCount = 0; // reset stuck count for new key
+            }
+            // Do not add duplicate page to PDF
+        } else {
+            // New page! Add to PDF
+            console.log(`Captured unique page ${pageCount} using ${forwardKey}.`);
+            const img = await pdfDoc.embedPng(imgBytes);
+            const pdfPage = pdfDoc.addPage([img.width, img.height]);
+            pdfPage.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+            
+            previousImgBytes = imgBytes;
+            stuckCount = 0;
+            keyIndex = 0; // lock in the successful key
+        }
 
         // Turn Page
-        await page.keyboard.press('ArrowRight');
-        await page.waitForTimeout(2000);
+        await page.keyboard.press(forwardKey);
+        await page.waitForTimeout(2500); // Wait longer for page render
 
         if (pageCount > 10 && await isEndOfBook(page)) {
-            console.log('Reached end of book.');
+            console.log('Reached end of book (marker detected).');
             break;
         }
     }
