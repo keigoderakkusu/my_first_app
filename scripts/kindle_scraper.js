@@ -81,7 +81,7 @@ async function run() {
         // Find visible book items with timeout handling
         try {
             console.log('Waiting for library items to appear...');
-            await page.waitForSelector('.library-item, #library-container', { timeout: 30000 });
+            await page.waitForSelector('.library-item, #itemViewResponse', { timeout: 30000 });
         } catch (e) {
             console.error('Timeout waiting for library items. Capturing debug evidence...');
             await page.screenshot({ path: 'error_screenshot.png', fullPage: true });
@@ -91,8 +91,15 @@ async function run() {
             process.exit(1);
         }
 
-        const bookItems = await page.$$('.library-item');
-        if (bookItems.length === 0) {
+        // Fetch book list from Amazon's injected JSON (Modern approach)
+        const itemsListJson = await page.evaluate(() => {
+            const el = document.getElementById('itemViewResponse');
+            return el ? JSON.parse(el.textContent).itemsList : [];
+        });
+
+        const bookItemsDOM = await page.$$('.library-item'); // Fallback for older layouts
+        
+        if (itemsListJson.length === 0 && bookItemsDOM.length === 0) {
             console.error('No books found in library even after wait.');
             process.exit(1);
         }
@@ -101,25 +108,47 @@ async function run() {
         const processedBooks = await getProcessedBooks();
         console.log(`Found ${processedBooks.length} processed books in GAS.`);
 
-        // Pick the first book that is NOT processed
-        let targetBook = null;
-        for (const item of bookItems) {
-            const title = await item.getAttribute('aria-label') || await item.innerText();
-            const cleanTitle = title.replace('の表紙', '').trim();
+        let targetBookUrl = null;
+        let targetBookTitle = null;
+        let targetBookDomElement = null;
 
-            if (!processedBooks.includes(cleanTitle)) {
-                targetBook = { item, title: cleanTitle };
-                console.log(`Targeting: ${cleanTitle}`);
-                break;
+        // Strategy A: JSON Extraction (Preferred)
+        if (itemsListJson.length > 0) {
+            for (const item of itemsListJson) {
+                const cleanTitle = item.title.replace('の表紙', '').trim();
+                if (!processedBooks.includes(cleanTitle)) {
+                    targetBookUrl = item.webReaderUrl;
+                    targetBookTitle = cleanTitle;
+                    console.log(`Targeting (from JSON): ${cleanTitle}`);
+                    break;
+                }
             }
         }
 
-        if (!targetBook) {
+        // Strategy B: DOM Extraction (Fallback)
+        if (!targetBookUrl && bookItemsDOM.length > 0) {
+            for (const item of bookItemsDOM) {
+                const title = await item.getAttribute('aria-label') || await item.innerText();
+                const cleanTitle = title.replace('の表紙', '').trim();
+                if (!processedBooks.includes(cleanTitle)) {
+                    targetBookDomElement = item;
+                    targetBookTitle = cleanTitle;
+                    console.log(`Targeting (from DOM): ${cleanTitle}`);
+                    break;
+                }
+            }
+        }
+
+        if (targetBookUrl) {
+            console.log(`Navigating directly to: ${targetBookUrl}`);
+            await page.goto(targetBookUrl);
+        } else if (targetBookDomElement) {
+            console.log('Clicking DOM element to open book...');
+            await targetBookDomElement.click();
+        } else {
             console.log('All visible books are already processed. Finishing.');
             return;
         }
-
-        await targetBook.item.click();
     } else {
         await page.goto(bookUrl);
     }
