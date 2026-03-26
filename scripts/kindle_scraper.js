@@ -4,6 +4,8 @@ const { PDFDocument } = require('pdf-lib');
 const fs = require('fs-extra');
 const path = require('path');
 const axios = require('axios');
+const { google } = require('googleapis');
+const { GoogleAuth } = require('google-auth-library');
 
 // Enable stealth
 chromium.use(stealth);
@@ -220,12 +222,14 @@ async function run() {
     const pdfBytes = await pdfDoc.save();
     const pdfPath = path.join(__dirname, 'output_book.pdf');
     fs.writeFileSync(pdfPath, pdfBytes);
+    console.log(`PDF saved locally: ${pdfPath} (${(pdfBytes.length / 1024 / 1024).toFixed(1)} MB)`);
 
-    // Step 4: Finalize
-    console.log('Upload complete (Simulated in local script, GitHub Action handles Drive)');
+    // Step 4: Upload to Google Drive directly
+    const driveUrl = await uploadToGoogleDrive(pdfPath, bookTitle);
+    console.log(`Google Drive URL: ${driveUrl || 'N/A'}`);
 
     // Notify GAS
-    await notifyGAS(bookTitle, 'Success');
+    await notifyGAS(bookTitle, 'Success', driveUrl);
 
     await browser.close();
     await fs.remove(screenshotsDir);
@@ -250,13 +254,59 @@ async function getProcessedBooks() {
     return [];
 }
 
-async function notifyGAS(title, status) {
+async function uploadToGoogleDrive(filePath, bookTitle) {
+    const credentialsJson = process.env.GOOGLE_DRIVE_CREDENTIALS_JSON;
+    const folderId = process.env.GOOGLE_DRIVE_FOLDER_ID;
+    if (!credentialsJson || !folderId) {
+        console.warn('Google Drive credentials or folder ID not set. Skipping upload.');
+        return null;
+    }
+
+    try {
+        // Decode Base64 credentials
+        const credentialsStr = Buffer.from(credentialsJson, 'base64').toString('utf-8');
+        const credentials = JSON.parse(credentialsStr);
+
+        const auth = new GoogleAuth({
+            credentials: credentials,
+            scopes: ['https://www.googleapis.com/auth/drive.file'],
+        });
+
+        const drive = google.drive({ version: 'v3', auth });
+
+        const safeName = bookTitle.replace(/[^a-zA-Z0-9\u3000-\u9FFF\uFF00-\uFFEF_\-]/g, '_').substring(0, 100);
+        const fileName = `${safeName}_${new Date().toISOString().slice(0,10)}.pdf`;
+
+        console.log(`Uploading to Google Drive as: ${fileName}`);
+
+        const res = await drive.files.create({
+            requestBody: {
+                name: fileName,
+                parents: [folderId],
+            },
+            media: {
+                mimeType: 'application/pdf',
+                body: fs.createReadStream(filePath),
+            },
+            fields: 'id, webViewLink',
+        });
+
+        console.log(`Upload successful! File ID: ${res.data.id}`);
+        return res.data.webViewLink || `https://drive.google.com/file/d/${res.data.id}/view`;
+    } catch (e) {
+        console.error('Google Drive upload failed:', e.message);
+        return null;
+    }
+}
+
+async function notifyGAS(title, status, driveUrl) {
     if (!GAS_URL) return;
     try {
         await axios.post(GAS_URL, {
             action: 'update_kindle_status',
             title: title,
             status: status,
+            driveUrl: driveUrl || '',
             timestamp: new Date().toISOString()
         });
         console.log('Status updated in GAS.');
