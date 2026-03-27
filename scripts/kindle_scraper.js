@@ -300,18 +300,30 @@ async function uploadToGoogleDrive(filePath, bookTitle) {
 }
 
 async function notifyGAS(title, status, driveUrl) {
-    if (!GAS_URL) return;
+    if (!GAS_URL) {
+        console.warn('GAS_WEB_APP_URL is not set. Skipping GAS update.');
+        return;
+    }
     try {
-        await axios.post(GAS_URL, {
+        console.log(`Sending update to GAS for "${title}" with status "${status}"...`);
+        const res = await axios.post(GAS_URL, {
             action: 'update_kindle_status',
             title: title,
             status: status,
             driveUrl: driveUrl || '',
             timestamp: new Date().toISOString()
         });
-        console.log('Status updated in GAS.');
+        if (res.data && res.data.success) {
+            console.log('Successfully updated status in GAS.');
+        } else {
+            console.warn('GAS returned success: false or unexpected response:', res.data);
+        }
     } catch (e) {
-        console.warn('Failed to update status in GAS:', e.message);
+        console.error(`Failed to update status in GAS: ${e.message}`);
+        if (e.response) {
+            console.error(`Response data: ${JSON.stringify(e.response.data)}`);
+            console.error(`Status code: ${e.response.status}`);
+        }
     }
 }
 
