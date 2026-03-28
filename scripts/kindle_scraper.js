@@ -186,34 +186,39 @@ async function run() {
         if (previousImgBytes && Buffer.compare(previousImgBytes, imgBytes) === 0) {
             stuckCount++;
             console.log(`Page unchanged. Stuck count: ${stuckCount}`);
+            
             if (stuckCount >= 2) {
-                keyIndex++;
-                if (keyIndex >= possibleKeys.length) {
-                    console.log('Tried all keys, page still won\'t turn. Reached end of book.');
+                // Try different interaction methods
+                if (stuckCount === 2) {
+                    console.log('Trying mouse click on right side...');
+                    await page.mouse.click(1100, 800);
+                } else if (stuckCount === 3) {
+                    console.log('Trying mouse click on left side (for Japanese books)...');
+                    await page.mouse.click(100, 800);
+                } else if (stuckCount === 4) {
+                    console.log('Trying Space key...');
+                    await page.keyboard.press('Space');
+                } else {
+                    console.log('No movement after multiple attempts. Reached end of book.');
                     break;
                 }
-                forwardKey = possibleKeys[keyIndex];
-                console.log(`Switching page turn key to: ${forwardKey}`);
-                stuckCount = 0; // reset stuck count for new key
             }
-            // Do not add duplicate page to PDF
         } else {
             // New page! Add to PDF
-            console.log(`Captured unique page ${pageCount} using ${forwardKey}.`);
+            console.log(`Captured unique page ${pageCount}.`);
             const img = await pdfDoc.embedPng(imgBytes);
             const pdfPage = pdfDoc.addPage([img.width, img.height]);
             pdfPage.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
             
             previousImgBytes = imgBytes;
             stuckCount = 0;
-            keyIndex = 0; // lock in the successful key
         }
 
-        // Turn Page
+        // Standard turn attempt
         await page.keyboard.press(forwardKey);
-        await page.waitForTimeout(2500); // Wait longer for page render
+        await page.waitForTimeout(3000); // Wait longer for render
 
-        if (pageCount > 10 && await isEndOfBook(page)) {
+        if (pageCount > 5 && await isEndOfBook(page)) {
             console.log('Reached end of book (marker detected).');
             break;
         }
@@ -277,26 +282,30 @@ async function uploadToGoogleDrive(filePath, bookTitle) {
         const safeName = bookTitle.replace(/[^a-zA-Z0-9\u3000-\u9FFF\uFF00-\uFFEF_\-]/g, '_').substring(0, 100);
         const fileName = `${safeName}_${new Date().toISOString().slice(0,10)}.pdf`;
 
-        console.log(`Uploading to Google Drive as: ${fileName}`);
+    let retryCount = 0;
+    const maxRetries = 2;
 
-        const res = await drive.files.create({
-            requestBody: {
-                name: fileName,
-                parents: [folderId],
-            },
-            media: {
-                mimeType: 'application/pdf',
-                body: fs.createReadStream(filePath),
-            },
-            fields: 'id, webViewLink',
-        });
-
-        console.log(`Upload successful! File ID: ${res.data.id}`);
-        return res.data.webViewLink || `https://drive.google.com/file/d/${res.data.id}/view`;
-    } catch (e) {
-        console.error('Google Drive upload failed:', e.message);
-        return null;
+    while (retryCount <= maxRetries) {
+        try {
+            console.log(`Uploading to Google Drive as: ${fileName} (Attempt ${retryCount + 1})...`);
+            const res = await drive.files.create({
+                requestBody: { name: fileName, parents: [folderId] },
+                media: { mimeType: 'application/pdf', body: fs.createReadStream(filePath) },
+                fields: 'id, webViewLink',
+            });
+            console.log(`Upload successful! File ID: ${res.data.id}`);
+            return res.data.webViewLink || `https://drive.google.com/file/d/${res.data.id}/view`;
+        } catch (e) {
+            console.error(`Upload attempt ${retryCount + 1} failed: ${e.message}`);
+            if (e.message.includes('storage quota')) {
+                console.error('CRITICAL: Service Account has NO storage quota. Please use Case A or Case C from the FIX PLAN.');
+                break; // Quota error won't be fixed by retrying
+            }
+            retryCount++;
+            if (retryCount <= maxRetries) await new Promise(resolve => setTimeout(resolve, 5000));
+        }
     }
+    return null;
 }
 
 async function notifyGAS(title, status, driveUrl) {
