@@ -1,15 +1,9 @@
 // ============================================================
-// 音声日報・議事録アプリ GASバックエンド
+// 音声日報・議事録アプリ GASバックエンド (最新・完全版)
 // ファイル名: Code.gs
 // ============================================================
 
 // ===== 設定 =====
-// ⚠️ APIキーはスクリプトプロパティから取得するよう変更
-// GASエディタ → プロジェクトの設定 → スクリプトプロパティ に以下を登録:
-//   GEMINI_API_KEY   : your-gemini-api-key
-//   GITHUB_TOKEN     : your-github-token
-//   SPREADSHEET_ID   : your-spreadsheet-id  (スタンドアロンGASの場合)
-
 function getConfig() {
   const props = PropertiesService.getScriptProperties();
   return {
@@ -27,7 +21,18 @@ function getConfig() {
   };
 }
 
-// ===== スプレッドシート取得（スタンドアロン対応）=====
+// ===== ユーティリティ =====
+function ensureArray(val) {
+  return Array.isArray(val) ? val : (val ? [val] : []);
+}
+
+function jsonResponse(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+// ===== スプレッドシート取得 =====
 function getSpreadsheet() {
   const config = getConfig();
   if (config.SPREADSHEET_ID) {
@@ -36,21 +41,22 @@ function getSpreadsheet() {
   return SpreadsheetApp.getActiveSpreadsheet();
 }
 
-// ===== CORS対応 OPTIONS =====
+// ===== CORS対応 =====
 function doOptions(e) {
   return ContentService.createTextOutput('')
     .setMimeType(ContentService.MimeType.TEXT);
-  // ※ GASはカスタムHTTPヘッダーを返せないため、
-  //    CORS問題は呼び出し側で text/plain + no-cors で対処してください
 }
 
-// ===== Webhook受信エントリーポイント (POST) =====
+// ===== Webhook受信 (POST) =====
 function doPost(e) {
   try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return jsonResponse({ success: false, error: 'リクエストデータが空です' });
+    }
+
     const raw    = JSON.parse(e.postData.contents);
     const action = raw.action || 'report';
 
-    // 1. 日報処理
     if (action === 'report') {
       const voiceText = raw.text;
       const timestamp = raw.timestamp || new Date().toISOString();
@@ -58,12 +64,13 @@ function doPost(e) {
 
       const structured = structureWithGemini(voiceText);
       saveToSheet(structured, voiceText, timestamp);
+      
       const config = getConfig();
       if (config.SEND_EMAIL) sendNotification(structured, timestamp);
+      
       return jsonResponse({ success: true, data: structured });
     }
 
-    // 2. Kindle スクレイパー起動
     if (action === 'trigger_kindle' || action === 'trigger_kindle_scraper') {
       const bookUrl   = raw.book_url || '';
       const githubRes = triggerGitHubAction('start-scraper', { book_url: bookUrl });
@@ -75,9 +82,8 @@ function doPost(e) {
       }
     }
 
-    // 3. Kindle ステータス更新
     if (action === 'update_kindle_status') {
-      return updateKindleStatus(raw.title, raw.status, raw.timestamp);
+      return updateKindleStatus(raw.title, raw.status, raw.driveUrl, raw.timestamp);
     }
 
     return jsonResponse({ success: false, error: '不明なアクションです' });
@@ -88,8 +94,12 @@ function doPost(e) {
   }
 }
 
-// ===== Webhook受信エントリーポイント (GET) =====
+// ===== Webhook受信 (GET) =====
 function doGet(e) {
+  if (!e || !e.parameter) {
+    return jsonResponse({ success: true, message: 'GAS Backend is active' });
+  }
+
   const action = e.parameter.action;
   const setup  = e.parameter.setup;
 
@@ -105,7 +115,7 @@ function doGet(e) {
   if (action === 'trigger_kindle') {
     const bookUrl = e.parameter.book_url || '';
     const result  = triggerGitHubAction('start-scraper', { book_url: bookUrl });
-    return jsonResponse({ success: true, message: 'スクレイパーを起動しました（GET）', github_response: result });
+    return jsonResponse({ success: true, message: 'スクレイパーを起動しました', github_response: result });
   }
 
   return jsonResponse({ success: true, message: 'GAS Backend is active' });
@@ -114,13 +124,13 @@ function doGet(e) {
 // ===== GitHub Actions トリガー =====
 function triggerGitHubAction(eventType, clientPayload) {
   const config = getConfig();
-  const url = `https://api.github.com/repos/${config.GITHUB_CONFIG.OWNER}/${config.GITHUB_CONFIG.REPO}/dispatches`;
+  const url = 'https://api.github.com/repos/' + config.GITHUB_CONFIG.OWNER + '/' + config.GITHUB_CONFIG.REPO + '/dispatches';
 
   const options = {
     method:      'POST',
     contentType: 'application/json',
     headers: {
-      'Authorization': `Bearer ${config.GITHUB_CONFIG.TOKEN}`,
+      'Authorization': 'Bearer ' + config.GITHUB_CONFIG.TOKEN,
       'Accept':        'application/vnd.github.v3+json',
     },
     payload:          JSON.stringify({ event_type: eventType, client_payload: clientPayload }),
@@ -131,7 +141,7 @@ function triggerGitHubAction(eventType, clientPayload) {
     const response = UrlFetchApp.fetch(url, options);
     const code     = response.getResponseCode();
     if (code === 204) return { success: true };
-    return { success: false, error: `HTTP ${code} - ${response.getContentText()}` };
+    return { success: false, error: 'HTTP ' + code + ' - ' + response.getContentText() };
   } catch (err) {
     return { success: false, error: err.toString() };
   }
@@ -158,7 +168,7 @@ function getKindleLibrary() {
 }
 
 // ===== Kindle ステータス更新 =====
-function updateKindleStatus(title, status, timestamp) {
+function updateKindleStatus(title, status, driveUrl, timestamp) {
   const config = getConfig();
   const ss     = getSpreadsheet();
   let sheet    = ss.getSheetByName(config.KINDLE_SHEET_NAME);
@@ -177,8 +187,9 @@ function updateKindleStatus(title, status, timestamp) {
   if (foundRow > 0) {
     sheet.getRange(foundRow, 3).setValue(status);
     sheet.getRange(foundRow, 4).setValue(now);
+    if (driveUrl) sheet.getRange(foundRow, 5).setValue(driveUrl);
   } else {
-    sheet.appendRow([title, '', status, now, '']);
+    sheet.appendRow([title, '', status, now, driveUrl || '']);
   }
 
   return jsonResponse({ success: true });
@@ -187,9 +198,13 @@ function updateKindleStatus(title, status, timestamp) {
 // ===== Gemini API で構造化 =====
 function structureWithGemini(voiceText) {
   const config = getConfig();
-  if (!config.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY が設定されていません');
+  if (!config.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY が設定されていません');
+  }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${config.GEMINI_API_KEY}`;
+  // 確実に対応している無料軽量モデルを指定
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=' + config.GEMINI_API_KEY;
+  
   const payload = {
     contents: [{ parts: [{ text: buildPrompt(voiceText) }] }],
     generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
@@ -206,10 +221,14 @@ function structureWithGemini(voiceText) {
   const result   = JSON.parse(response.getContentText());
 
   if (response.getResponseCode() !== 200) {
-    throw new Error(`Gemini APIエラー: ${result.error?.message || 'unknown'}`);
+    // 文字列結合で安全にエラーメッセージを作成（構文エラー対策）
+    const errMsg = (result.error && result.error.message) ? result.error.message : 'unknown';
+    throw new Error('Gemini APIエラー: ' + errMsg);
   }
 
-  const jsonText = result.candidates[0].content.parts[0].text;
+  let jsonText = result.candidates[0].content.parts[0].text;
+  jsonText = jsonText.replace(/^```(json)?|```$/gm, '').trim();
+
   return JSON.parse(jsonText);
 }
 
@@ -264,9 +283,9 @@ function saveToSheet(data, rawText, timestamp) {
     data.date            || '',
     data.location        || '',
     data.summary         || '',
-    (data.decisions      || []).join('\n'),
-    (data.concerns       || []).join('\n'),
-    (data.next_actions   || []).map(a => `・${a.action}（担当: ${a.owner}、期限: ${a.deadline}）`).join('\n'),
+    ensureArray(data.decisions).join('\n'),
+    ensureArray(data.concerns).join('\n'),
+    ensureArray(data.next_actions).map(a => '・' + (a.action || '') + '（担当: ' + (a.owner || '') + '、期限: ' + (a.deadline || '') + '）').join('\n'),
     data.memo            || '',
     rawText,
   ];
@@ -280,8 +299,9 @@ function saveToSheet(data, rawText, timestamp) {
 function sendNotification(data, timestamp) {
   const config  = getConfig();
   const date    = new Date(timestamp).toLocaleString('ja-JP');
-  const actions = (data.next_actions || [])
-    .map((a, i) => `  ${i+1}. ${a.action}（担当: ${a.owner}、期限: ${a.deadline}）`)
+  
+  const actions = ensureArray(data.next_actions)
+    .map((a, i) => '  ' + (i+1) + '. ' + (a.action || '') + '（担当: ' + (a.owner || '') + '、期限: ' + (a.deadline || '') + '）')
     .join('\n');
 
   const body = `
@@ -298,10 +318,10 @@ ${data.date || '不明'} ／ ${data.location || '不明'}
 ${data.summary || '（なし）'}
 
 ▼ 決定事項
-${(data.decisions || []).map((d, i) => `  ${i+1}. ${d}`).join('\n') || '  （なし）'}
+${ensureArray(data.decisions).map((d, i) => '  ' + (i+1) + '. ' + d).join('\n') || '  （なし）'}
 
 ▼ 懸念点
-${(data.concerns || []).map((c, i) => `  ${i+1}. ${c}`).join('\n') || '  （なし）'}
+${ensureArray(data.concerns).map((c, i) => '  ' + (i+1) + '. ' + c).join('\n') || '  （なし）'}
 
 ▼ ネクストアクション
 ${actions || '  （なし）'}
@@ -318,14 +338,6 @@ Life-Gravity 日報システム から自動送信
     `【日報】${data.title || '新しい記録'} - ${date}`,
     body
   );
-}
-
-// ===== ユーティリティ: JSONレスポンス =====
-// ※ GASはHTTPステータスコードを自由に変更できないため statusCode 引数は廃止
-function jsonResponse(obj) {
-  return ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.TEXT);
 }
 
 // ===== 手動テスト用 =====
@@ -347,13 +359,4 @@ function testDoPost() {
   };
   const result = doPost(mockE);
   console.log(result.getContent());
-}
-function setupProperties() {
-  const props = PropertiesService.getScriptProperties();
-  props.setProperties({
-    'GEMINI_API_KEY': 'YOUR_GEMINI_API_KEY_HERE',
-    'GITHUB_TOKEN':   'YOUR_GITHUB_TOKEN_HERE',
-    'SPREADSHEET_ID': 'YOUR_SPREADSHEET_ID_HERE'
-  });
-  console.log('Script properties placeholders have been set. Please update them with real values in the GAS editor.');
 }

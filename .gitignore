@@ -46,3 +46,12 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Temporary artifacts
+*.zip
+pdf_evidence/
+evidence/
+new_evidence/
+error_evidence/
+*.pdf
+*.png

@@ -9,7 +9,7 @@ import 'package:http/http.dart' as http;
 class GasService {
   // ← デプロイ後のWebアプリURLに差し替える
   static const String _gasUrl =
-      'https://script.google.com/macros/s/AKfycbw6Wg0EQMcXwdiq7sXVfab5RtAQSsEB9eqNJLFw1AQqof8oKe5d2_UBVS5yFKrJaDIk/exec';
+      'https://script.google.com/macros/s/AKfycbx-0EPpnFl2jl3vPp1UuAxZo83KK1ucobp1ywymmsjwnK4e1Vl68fcIqS_H-NKPANAU/exec';
 
   /// 音声テキストをGASに送信して日報を生成・保存する
   static Future<GasResult> sendVoiceReport(String voiceText) async {
