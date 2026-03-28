@@ -305,7 +305,11 @@ async function uploadToGoogleDrive(filePath, bookTitle) {
             if (retryCount <= maxRetries) await new Promise(resolve => setTimeout(resolve, 5000));
         }
     }
-    return null;
+        return null;
+    } catch (e) {
+        console.error('Fatal error during Google Drive upload:', e.message);
+        return null;
+    }
 }
 
 async function notifyGAS(title, status, driveUrl) {
